@@ -1,0 +1,13 @@
+server:
+  port: 8061
+
+# swagger 配置
+swagger:
+  config: true
+
+elasticsearch:
+  security:
+    userName: elastic
+    host: 192.168.0.139
+    password: xm1014
+    port: 9200
