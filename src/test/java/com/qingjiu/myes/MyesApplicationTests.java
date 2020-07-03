@@ -83,7 +83,7 @@ public class MyesApplicationTests {
 
         IndexRequest request = new IndexRequest("test");
         request.id("3");
-       // request.opType(DocWriteRequest.OpType.INDEX);
+        // request.opType(DocWriteRequest.OpType.INDEX);
         //request.version(2);
         IndexRequest source = request.source(JSON.toJSONString(elasticSearchEntity), XContentType.JSON);
         IndexResponse index = restHighLevelClient.index(request, RequestOptions.DEFAULT);
@@ -157,7 +157,7 @@ public class MyesApplicationTests {
 
     @Test
     public void testGetSource() throws IOException {
-        GetRequest request = new GetRequest("test","1");
+        GetRequest request = new GetRequest("test", "1");
         boolean exists = restHighLevelClient.exists(request, RequestOptions.DEFAULT);
         System.out.println(exists);
     }
@@ -165,7 +165,7 @@ public class MyesApplicationTests {
 
     @Test
     public void testDelIndex() throws IOException {
-        DeleteRequest deleteRequest = new DeleteRequest("test","4");
+        DeleteRequest deleteRequest = new DeleteRequest("test", "4");
         DeleteResponse delete = restHighLevelClient.delete(deleteRequest, RequestOptions.DEFAULT);
         ReplicationResponse.ShardInfo shardInfo = delete.getShardInfo();
         System.out.println(delete.status());
@@ -183,13 +183,13 @@ public class MyesApplicationTests {
 
     @Test
     public void testUpdate() throws IOException {
-        UpdateRequest updateRequest = new UpdateRequest("test","4");
+        UpdateRequest updateRequest = new UpdateRequest("test", "4");
         ElasticSearchEntity user = new ElasticSearchEntity();
         user.setHost("123456");
         user.setPassword("654321");
         user.setPort(6379);
         user.setUserName("tjy");
-        updateRequest.doc(JSON.toJSON(user),XContentType.JSON);
+        updateRequest.doc(JSON.toJSON(user), XContentType.JSON);
         UpdateResponse update = restHighLevelClient.update(updateRequest, RequestOptions.DEFAULT);
         System.out.println(update.status());
     }
@@ -239,9 +239,10 @@ public class MyesApplicationTests {
         boolean util = esClientUtil.createIndex("name3", null, null, false);
         System.out.println(util);
     }
+
     @Test
     public void testDelIndexUtil() throws IOException {
-        boolean util = esClientUtil.deleteIndex("names1", null, null, false);
+        boolean util = esClientUtil.deleteIndex("util", null, null, false);
         System.out.println(util);
     }
 
@@ -258,19 +259,19 @@ public class MyesApplicationTests {
         user.setUserNo("2221111");
         user.setUserName("最强法海");
         user.setSex(1);
-        RestStatus myes = esClientUtil.addDocument("myes", null, user, true,"2");
+        RestStatus myes = esClientUtil.addDocument("myes", null, user, true, "2");
         System.out.println(myes);
     }
 
     @Test
     public void testGetDocToStingUtil() throws IOException {
-        String documentToMap = esClientUtil.getDocumentToString("myes","1",false);
+        String documentToMap = esClientUtil.getDocumentToString("myes", "1", false);
         System.out.println(documentToMap);
     }
 
     @Test
     public void testGetDocToMapUtil() throws IOException {
-        Map<String, Object> documentToMap = esClientUtil.getDocumentToMap("myes","2",true);
+        Map<String, Object> documentToMap = esClientUtil.getDocumentToMap("myes", "2", true);
         System.out.println(documentToMap);
     }
 
@@ -282,17 +283,17 @@ public class MyesApplicationTests {
 
     @Test
     public void testGetDelDocUtil() throws IOException {
-        String myes = esClientUtil.deleteDocument("myes", "KeWGDXMBy0tykx2fj1nG", null, false);
+        String myes = esClientUtil.deleteDocument("myes", "KOV_DXMBy0tykx2fCFn-", null, false);
         System.out.println(myes);
     }
 
     @Test
-    public void  testUpdateDocUtil() throws IOException {
+    public void testUpdateDocUtil() throws IOException {
         User user = new User();
         user.setUserNo("222233333");
         user.setUserName("大威天龙");
         user.setSex(1);
-        esClientUtil.updateDocument("myes","1",user,null,false);
+        esClientUtil.updateDocument("myes", "1", user, null, false);
     }
 
     @Test
@@ -300,44 +301,58 @@ public class MyesApplicationTests {
         List<User> list = new ArrayList<>();
 
         User user = new User();
-        user.setUserNo("1");
-        user.setUserName("最强法海");
+        user.setUserNo("23");
+        user.setUserName("最强法海2233");
         user.setSex(1);
         list.add(user);
 
         User user1 = new User();
         user1.setUserNo("2");
-        user1.setUserName("大威天龙");
+        user1.setUserName("大威天龙1");
         user1.setSex(2);
         list.add(user1);
 
 
         User user2 = new User();
         user2.setUserNo("3");
-        user2.setUserName("般若诸佛");
+        user2.setUserName("般若诸佛1");
         user2.setSex(3);
         list.add(user2);
 
         User user3 = new User();
         user3.setUserNo("4");
-        user3.setUserName("大罗金身");
-        user3.setSex(4);
+        user3.setUserName("大罗金身1");
+        user3.setSex(3);
         list.add(user3);
 
         User user4 = new User();
         user4.setUserNo("5");
-        user4.setUserName("世尊地藏");
-        user4.setSex(5);
+        user4.setUserName("世尊地藏1");
+        user4.setSex(3);
         list.add(user4);
 
         User user5 = new User();
         user5.setUserNo("6");
-        user5.setUserName("开始捉妖");
-        user5.setSex(6);
+        user5.setUserName("开始捉妖12");
+        user5.setSex(3);
         list.add(user5);
 
+        User user6 = new User();
+        user6.setUserNo("7");
+        user6.setUserName("牛皮!");
+        user6.setSex(2);
+        list.add(user6);
 
-        esClientUtil.addBulkDocument("util",list,null);
+        String json = esClientUtil.bulkAddDocument("qs", list, null, false);
+       // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
+       // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
+        System.out.println(json);
+    }
+
+
+    @Test
+    public void testSearch() throws IOException {
+        esClientUtil.search();
     }
 
 }

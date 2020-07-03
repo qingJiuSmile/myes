@@ -1,8 +1,8 @@
 package com.qingjiu.myes.service;
 
 import com.alibaba.fastjson.JSON;
-import com.sun.org.apache.regexp.internal.RE;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.lucene.search.TotalHits;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
@@ -15,8 +15,10 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -24,9 +26,22 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.common.text.Text;
+import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.metrics.Avg;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -35,6 +50,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * ElasticSearch [Java-Rest-Client-High-Level] Util
@@ -56,8 +72,8 @@ public class EsClientUtil {
     /***********************************************************************************************
      ***                                 操 作 索 引 方 法                                        ***
      ***********************************************************************************************
-     *                                date  :   2020-7-2 10:19:05                                  *
-     *                                auth  :   tjy                                                *
+     *                                date     :   2020-7-2 10:19:05                               *
+     *                                author  :   tjy                                              *
      * ------------------------------------------------------------------------------------------- *
      * Methods:                                                                                    *
      *   createIndex --                                                                            *
@@ -191,8 +207,8 @@ public class EsClientUtil {
     /***********************************************************************************************
      ***                                 操 作 文 档 方 法                                        ***
      ***********************************************************************************************
-     *                                date  :   2020-7-2 10:37:03                                  *
-     *                                auth  :   tjy                                                *
+     *                                date     :   2020-7-2 10:37:03                               *
+     *                                author  :   tjy                                              *
      * ------------------------------------------------------------------------------------------- *
      * Method:                                                                                     *
      *   addDocument -- Fetches the number of frames in data block.                                *
@@ -429,7 +445,7 @@ public class EsClientUtil {
         try {
             UpdateRequest request = new UpdateRequest(indexName, id);
             request.timeout(TimeValue.timeValueSeconds(timeOut == null ? this.timeOut : timeOut));
-            request.doc(JSON.toJSON(obj), XContentType.JSON);
+            request.doc(JSON.toJSONString(obj), XContentType.JSON);
             UpdateResponse response = client.update(request, RequestOptions.DEFAULT);
 
             // 处理第一次创建文档的情况(向上插入)
@@ -478,26 +494,206 @@ public class EsClientUtil {
     /***********************************************************************************************
      ***                                 批   量   操   作                                       ***
      ***********************************************************************************************
-     *                                date  :   2020-7-2 16:46:54                                  *
-     *                                auth  :   tjy                                                *
+     *                                date     :   2020-7-3 15:34:23                               *
+     *                                author  :   tjy                                              *
      * ------------------------------------------------------------------------------------------- *
      * Method:                                                                                     *
-     *   addDocument -- Fetches the number of frames in data block.                                *
-     *   Get_Build_Frame_Width -- Fetches the width of the shape image.                            *
-     *   Get_Build_Frame_Height -- Fetches the height of the shape image.                          *
+     *   bulkAddDocument --                                                                        *
+     *   bulkUpdateDocument --                                                                     *
+     *   bulkDelDocument --                                                                        *
      * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-    public void addBulkDocument(String indexName, List<?> list, Long timeOut) throws IOException {
+    public String bulkAddDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+
         BulkRequest request = new BulkRequest();
+        request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
         for (int i = 0; i < list.size(); i++) {
-            request.add(new IndexRequest(indexName).id("" + i)
-                    .source(JSON.toJSON(list.get(i)), XContentType.JSON))
-                    .timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
+            request.add(new IndexRequest(indexName).id("" + (i + 1))
+                    .source(JSON.toJSONString(list.get(i)), XContentType.JSON));
         }
 
         BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
-        System.out.println(bulkResponse.status());
+
+        if (isAsync) {
+            client.bulkAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkResponse>() {
+                @Override
+                public void onResponse(BulkResponse bulkItemResponses) {
+                    log.info("bulkItemResponses ==> [{}]", bulkItemResponses.status());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            });
+        }
+        // 是否失败返回false 代表成功
+        return bulkResponse.status().toString();
+    }
+
+
+    //TODO 批量修改;
+    public String bulkUpdateDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+
+        BulkRequest request = new BulkRequest();
+        request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
+        for (int i = 0; i < list.size(); i++) {
+            request.add(new UpdateRequest(indexName, ("" + (i + 1))).doc(JSON.toJSONString(list.get(i)), XContentType.JSON));
+        }
+
+        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+
+        if (isAsync) {
+            client.bulkAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkResponse>() {
+                @Override
+                public void onResponse(BulkResponse bulkItemResponses) {
+                    log.info("bulkItemResponses ==> [{}]", bulkItemResponses.status());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            });
+        }
+        // 是否失败返回false 代表成功
+        return bulkResponse.status().toString();
+
+    }
+
+    //TODO 批量删除;
+    public String bulkDelDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+        BulkRequest request = new BulkRequest();
+        request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
+
+        for (int i = 0; i < list.size(); i++) {
+            request.add(new DeleteRequest(indexName, ("" + (i + 1))));
+        }
+
+        BulkResponse bulkResponse = client.bulk(request, RequestOptions.DEFAULT);
+
+        if (isAsync) {
+            client.bulkAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkResponse>() {
+                @Override
+                public void onResponse(BulkResponse bulkItemResponses) {
+                    log.info("bulkItemResponses ==> [{}]", bulkItemResponses.status());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            });
+        }
+        // 是否失败返回false 代表成功
+        return bulkResponse.status().toString();
+    }
+
+
+    /***********************************************************************************************
+     ***                                 搜             索                                       ***
+     ***********************************************************************************************
+     *                                date     :   2020-7-3 15:47:35                               *
+     *                                author  :   tjy                                              *
+     * ------------------------------------------------------------------------------------------- *
+     * Method:                                                                                     *
+     *   bulkAddDocument --                                                                        *
+     *   bulkUpdateDocument --                                                                     *
+     *   bulkDelDocument --                                                                        *
+     * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+    public void search() throws IOException {
+
+        SearchRequest searchRequest = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        searchRequest.source(searchSourceBuilder);
+        // 搜索指定的索引
+        // SearchRequest searchRequest1 = new SearchRequest("index1","index2");
+        // 指定片区
+        // searchRequest.preference("_local");
+
+        // 查询所有的内容
+      /*  searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+
+        // b.查询包含关键词字段的文档：如下，表示查询出来所有包含user字段且user字段包含kimchy值的文档
+        searchSourceBuilder.query(QueryBuilders.termQuery("userName", "法海"));*/
+
+        // 上面是基于QueryBuilders查询选项的，另外还可以使用MatchQueryBuilder配置查询参数
+        QueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("userName", "1")
+                .fuzziness(Fuzziness.AUTO)
+                .prefixLength(3)
+                .maxExpansions(10);
+        // 注：无论用于创建它的方法是什么，都必须将QueryBuilder对象添加到SearchSourceBuilder
+        searchSourceBuilder.query(matchQueryBuilder);
+
+        // 设置查询的起始索引位置和数量：如下表示从第1条开始，共返回5条文档数据
+        searchSourceBuilder.from(0);
+        searchSourceBuilder.size(5);
+
+        // 设置查询请求的超时时间：如下表示60秒没得到返回结果时就认为请求已超时
+        searchSourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
+
+        // 默认情况下，搜索请求会返回文档_source的内容，但与Rest API中的内容一样，您可以覆盖此行为。例如，您可以完全关闭_source检索：
+        searchSourceBuilder.fetchSource(false);
+
+        // 该方法还接受一个或多个通配符模式的数组，以控制以更精细的方式包含或排除哪些字段
+    /*    String[] includeFields = new String[] {"title", "user", "innerObject.*"};
+        String[] excludeFields = new String[] {"_type"};
+        SearchSourceBuilder searchSourceBuilder1 = searchSourceBuilder.fetchSource(includeFields, excludeFields);*/
+        System.out.println(searchSourceBuilder);
+
+        HighlightBuilder highlightBuilder = new HighlightBuilder();
+        HighlightBuilder.Field highlightTitle =
+                new HighlightBuilder.Field("title");
+        highlightTitle.highlighterType("unified");
+        highlightBuilder.field(highlightTitle);
+        HighlightBuilder.Field highlightUser = new HighlightBuilder.Field("user");
+        highlightBuilder.field(highlightUser);
+        searchSourceBuilder.highlighter(highlightBuilder);
+
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+
+        // 检索searchist
+        SearchHits hits = searchResponse.getHits();
+        TotalHits totalHits = hits.getTotalHits();
+         // the total number of hits, must be interpreted in the context of totalHits.relation
+        long numHits = totalHits.value;
+       // whether the number of hits is accurate (EQUAL_TO) or a lower bound of the total (GREATER_THAN_OR_EQUAL_TO)
+        TotalHits.Relation relation = totalHits.relation;
+        float maxScore = hits.getMaxScore();
+        System.out.println(numHits);
+        System.out.println(relation);
+        System.out.println(maxScore);
+        SearchHit[] searchHits = hits.getHits();
+        for (SearchHit hit : searchHits) {
+            // do something with the SearchHit
+            String index = hit.getIndex();
+            String id = hit.getId();
+            float score = hit.getScore();
+            String sourceAsString = hit.getSourceAsString();
+            Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+        /*    String documentTitle = (String) sourceAsMap.get("title");
+            List<Object> users = (List<Object>) sourceAsMap.get("user");
+            Map<String, Object> innerObject =
+                    (Map<String, Object>) sourceAsMap.get("innerObject");*/
+            log.info("法师所在索引 || ==> [{}] || id ==> [{}] || 评分 ==> [{}] || 有那味了 ==> [{}]",index,id,score, sourceAsString);
+        }
+        for (SearchHit hit : hits.getHits()) {
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            HighlightField highlight = highlightFields.get("qs");
+            Text[] fragments = highlight.fragments();
+            String fragmentString = fragments[0].string();
+            System.out.println(fragmentString);
+        }
+        Aggregations aggregations = searchResponse.getAggregations();
+        Terms byCompanyAggregation = aggregations.get("by_company");
+        Terms.Bucket elastic = byCompanyAggregation.getBucketByKey("Elastic");
+        Avg averageAge = elastic.getAggregations().get("average_age");
+        double avg = averageAge.getValue();
+        System.out.println(avg);
+
     }
 
 }
