@@ -302,20 +302,20 @@ public class MyesApplicationTests {
 
         User user = new User();
         user.setUserNo("23");
-        user.setUserName("最强法海2233");
+        user.setUserName("kingfahai");
         user.setSex(1);
         list.add(user);
 
         User user1 = new User();
         user1.setUserNo("2");
-        user1.setUserName("大威天龙1");
+        user1.setUserName("daweitianlong ");
         user1.setSex(2);
         list.add(user1);
 
 
         User user2 = new User();
         user2.setUserNo("3");
-        user2.setUserName("般若诸佛1");
+        user2.setUserName("bore");
         user2.setSex(3);
         list.add(user2);
 
@@ -343,7 +343,7 @@ public class MyesApplicationTests {
         user6.setSex(2);
         list.add(user6);
 
-        String json = esClientUtil.bulkAddDocument("qs", list, null, false);
+        String json = esClientUtil.bulkAddDocument("qos1", list, null, false);
        // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
        // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
         System.out.println(json);

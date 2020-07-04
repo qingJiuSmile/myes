@@ -30,9 +30,7 @@ import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.MatchQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -606,9 +604,10 @@ public class EsClientUtil {
     public void search() throws IOException {
 
         SearchRequest searchRequest = new SearchRequest();
+        // 创建搜索构建器
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
-        searchRequest.source(searchSourceBuilder);
+        // 匹配所有
+        // searchSourceBuilder.query(QueryBuilders.matchAllQuery());
         // 搜索指定的索引
         // SearchRequest searchRequest1 = new SearchRequest("index1","index2");
         // 指定片区
@@ -621,53 +620,56 @@ public class EsClientUtil {
         searchSourceBuilder.query(QueryBuilders.termQuery("userName", "法海"));*/
 
         // 上面是基于QueryBuilders查询选项的，另外还可以使用MatchQueryBuilder配置查询参数
-        QueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("userName", "1")
-                .fuzziness(Fuzziness.AUTO)
-                .prefixLength(3)
-                .maxExpansions(10);
-        // 注：无论用于创建它的方法是什么，都必须将QueryBuilder对象添加到SearchSourceBuilder
+        QueryBuilder matchQueryBuilder = QueryBuilders.matchPhrasePrefixQuery("userName", "kingfahai");
         searchSourceBuilder.query(matchQueryBuilder);
+        // 注：无论用于创建它的方法是什么，都必须将QueryBuilder对象添加到SearchSourceBuilder
+      /*  TermsQueryBuilder termQueryBuilder = QueryBuilders.termsQuery("userName", "大威天龙");
+        searchSourceBuilder.query(termQueryBuilder)*/;
 
-        // 设置查询的起始索引位置和数量：如下表示从第1条开始，共返回5条文档数据
+        // 设置查询的起始索引位置和数量：如下表示从第1条开始，共返回5条文档数据 （分页）
         searchSourceBuilder.from(0);
-        searchSourceBuilder.size(5);
+        searchSourceBuilder.size(20);
 
         // 设置查询请求的超时时间：如下表示60秒没得到返回结果时就认为请求已超时
         searchSourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
 
         // 默认情况下，搜索请求会返回文档_source的内容，但与Rest API中的内容一样，您可以覆盖此行为。例如，您可以完全关闭_source检索：
-        searchSourceBuilder.fetchSource(false);
+       // searchSourceBuilder.fetchSource(false);
 
         // 该方法还接受一个或多个通配符模式的数组，以控制以更精细的方式包含或排除哪些字段
     /*    String[] includeFields = new String[] {"title", "user", "innerObject.*"};
         String[] excludeFields = new String[] {"_type"};
         SearchSourceBuilder searchSourceBuilder1 = searchSourceBuilder.fetchSource(includeFields, excludeFields);*/
-        System.out.println(searchSourceBuilder);
+       // System.out.println(searchSourceBuilder);
 
         HighlightBuilder highlightBuilder = new HighlightBuilder();
-        HighlightBuilder.Field highlightTitle =
-                new HighlightBuilder.Field("title");
+        HighlightBuilder.Field highlightTitle = new HighlightBuilder.Field("title");
+
         highlightTitle.highlighterType("unified");
         highlightBuilder.field(highlightTitle);
+
         HighlightBuilder.Field highlightUser = new HighlightBuilder.Field("user");
         highlightBuilder.field(highlightUser);
+
         searchSourceBuilder.highlighter(highlightBuilder);
+
+        searchRequest.source(searchSourceBuilder);
 
         SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
 
         // 检索searchist
         SearchHits hits = searchResponse.getHits();
+        System.out.println(JSON.toJSONString(hits));
         TotalHits totalHits = hits.getTotalHits();
-         // the total number of hits, must be interpreted in the context of totalHits.relation
+        // 数量统计
         long numHits = totalHits.value;
-       // whether the number of hits is accurate (EQUAL_TO) or a lower bound of the total (GREATER_THAN_OR_EQUAL_TO)
         TotalHits.Relation relation = totalHits.relation;
         float maxScore = hits.getMaxScore();
         System.out.println(numHits);
         System.out.println(relation);
         System.out.println(maxScore);
-        SearchHit[] searchHits = hits.getHits();
-        for (SearchHit hit : searchHits) {
+
+        for (SearchHit hit : hits.getHits()) {
             // do something with the SearchHit
             String index = hit.getIndex();
             String id = hit.getId();
@@ -678,22 +680,38 @@ public class EsClientUtil {
             List<Object> users = (List<Object>) sourceAsMap.get("user");
             Map<String, Object> innerObject =
                     (Map<String, Object>) sourceAsMap.get("innerObject");*/
-            log.info("法师所在索引 || ==> [{}] || id ==> [{}] || 评分 ==> [{}] || 有那味了 ==> [{}]",index,id,score, sourceAsString);
+            log.info("法师所在索引 || ==> [{}] || id ==> [{}] || 评分 ==> [{}] || 有那味了 ==> [{}]",index,id,score, sourceAsMap);
         }
-        for (SearchHit hit : hits.getHits()) {
+       /* for (SearchHit hit : hits.getHits()) {
             Map<String, HighlightField> highlightFields = hit.getHighlightFields();
             HighlightField highlight = highlightFields.get("qs");
             Text[] fragments = highlight.fragments();
             String fragmentString = fragments[0].string();
             System.out.println(fragmentString);
-        }
-        Aggregations aggregations = searchResponse.getAggregations();
+        }*/
+      /*  Aggregations aggregations = searchResponse.getAggregations();
         Terms byCompanyAggregation = aggregations.get("by_company");
         Terms.Bucket elastic = byCompanyAggregation.getBucketByKey("Elastic");
         Avg averageAge = elastic.getAggregations().get("average_age");
         double avg = averageAge.getValue();
-        System.out.println(avg);
+        System.out.println(avg);*/
 
+    }
+
+
+    public void testTermQuery() throws IOException {
+        SearchRequest searchRequest = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        // termQuery 方法对中文支持不好，只能支持单个中文进行搜索；并且，如果是搜索单词的话 也只能支持单个单词，如：不能 elasticSearch 驼峰写法
+        TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("userName", "kingfahai");
+        searchSourceBuilder.query(termQueryBuilder);
+        searchRequest.source(searchSourceBuilder);
+        SearchResponse response = client.search(searchRequest,RequestOptions.DEFAULT);
+        System.out.println(response.status());
+        System.out.println(JSON.toJSONString(response.getHits()));
+        for (SearchHit searchHit : response.getHits().getHits() ) {
+            System.out.println(searchHit.getSourceAsMap());
+        }
     }
 
 }
