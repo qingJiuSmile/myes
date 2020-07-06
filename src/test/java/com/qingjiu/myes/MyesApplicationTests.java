@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.qingjiu.myes.entity.User;
 import com.qingjiu.myes.entity.es.ElasticSearchEntity;
 import com.qingjiu.myes.service.EsClientUtil;
+import com.qingjiu.myes.util.DateUtil;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -32,6 +33,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -300,50 +302,60 @@ public class MyesApplicationTests {
     public void testAddBulkDocument() throws IOException {
         List<User> list = new ArrayList<>();
 
+        Timestamp timestamp = DateUtil.nowTimestamp();
+
         User user = new User();
         user.setUserNo("23");
         user.setUserName("kingfahai");
         user.setSex(1);
+        user.setDate(timestamp);
         list.add(user);
 
         User user1 = new User();
         user1.setUserNo("2");
         user1.setUserName("daweitianlong ");
         user1.setSex(2);
+        user1.setDate(timestamp);
         list.add(user1);
+
 
 
         User user2 = new User();
         user2.setUserNo("3");
         user2.setUserName("bore");
         user2.setSex(3);
+        user2.setDate(timestamp);
         list.add(user2);
 
         User user3 = new User();
         user3.setUserNo("4");
         user3.setUserName("大罗金身1");
         user3.setSex(3);
+        user3.setDate(timestamp);
         list.add(user3);
 
         User user4 = new User();
         user4.setUserNo("5");
         user4.setUserName("世尊地藏1");
         user4.setSex(3);
+        user4.setDate(timestamp);
         list.add(user4);
 
         User user5 = new User();
         user5.setUserNo("6");
         user5.setUserName("开始捉妖12");
         user5.setSex(3);
+        user5.setDate(timestamp);
         list.add(user5);
 
         User user6 = new User();
         user6.setUserNo("7");
         user6.setUserName("牛皮!");
         user6.setSex(2);
+        user6.setDate(timestamp);
         list.add(user6);
 
-        String json = esClientUtil.bulkAddDocument("qos1", list, null, false);
+        boolean json = esClientUtil.bulkAddDocument("qos1", list, null, false);
        // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
        // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
         System.out.println(json);
@@ -352,7 +364,7 @@ public class MyesApplicationTests {
 
     @Test
     public void testSearch() throws IOException {
-        esClientUtil.search();
+        esClientUtil.timeSearch();
     }
 
 }

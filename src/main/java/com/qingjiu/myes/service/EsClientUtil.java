@@ -1,6 +1,7 @@
 package com.qingjiu.myes.service;
 
 import com.alibaba.fastjson.JSON;
+import com.qingjiu.myes.util.DateUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.search.TotalHits;
 import org.elasticsearch.ElasticsearchException;
@@ -17,7 +18,6 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
@@ -26,20 +26,17 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
-import org.elasticsearch.common.text.Text;
-import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.*;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.aggregations.Aggregations;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.metrics.Avg;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
-import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -502,7 +499,7 @@ public class EsClientUtil {
      * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-    public String bulkAddDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+    public boolean bulkAddDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
 
         BulkRequest request = new BulkRequest();
         request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
@@ -527,12 +524,12 @@ public class EsClientUtil {
             });
         }
         // 是否失败返回false 代表成功
-        return bulkResponse.status().toString();
+        return bulkResponse.hasFailures();
     }
 
 
     //TODO 批量修改;
-    public String bulkUpdateDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+    public boolean bulkUpdateDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
 
         BulkRequest request = new BulkRequest();
         request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
@@ -556,12 +553,12 @@ public class EsClientUtil {
             });
         }
         // 是否失败返回false 代表成功
-        return bulkResponse.status().toString();
+        return bulkResponse.hasFailures();
 
     }
 
     //TODO 批量删除;
-    public String bulkDelDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
+    public boolean bulkDelDocument(String indexName, List<?> list, Long timeOut, boolean isAsync) throws IOException {
         BulkRequest request = new BulkRequest();
         request.timeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
 
@@ -585,7 +582,7 @@ public class EsClientUtil {
             });
         }
         // 是否失败返回false 代表成功
-        return bulkResponse.status().toString();
+        return bulkResponse.hasFailures();
     }
 
 
@@ -606,6 +603,7 @@ public class EsClientUtil {
         SearchRequest searchRequest = new SearchRequest();
         // 创建搜索构建器
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
         // 匹配所有
         // searchSourceBuilder.query(QueryBuilders.matchAllQuery());
         // 搜索指定的索引
@@ -614,17 +612,18 @@ public class EsClientUtil {
         // searchRequest.preference("_local");
 
         // 查询所有的内容
-      /*  searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        //searchSourceBuilder.query(QueryBuilders.matchAllQuery());
 
         // b.查询包含关键词字段的文档：如下，表示查询出来所有包含user字段且user字段包含kimchy值的文档
-        searchSourceBuilder.query(QueryBuilders.termQuery("userName", "法海"));*/
+        //searchSourceBuilder.query(QueryBuilders.termQuery("userName.keyword", "最强法海"));
 
         // 上面是基于QueryBuilders查询选项的，另外还可以使用MatchQueryBuilder配置查询参数
-        QueryBuilder matchQueryBuilder = QueryBuilders.matchPhrasePrefixQuery("userName", "kingfahai");
+        QueryBuilder matchQueryBuilder = QueryBuilders.matchPhrasePrefixQuery("userName", "大");
         searchSourceBuilder.query(matchQueryBuilder);
         // 注：无论用于创建它的方法是什么，都必须将QueryBuilder对象添加到SearchSourceBuilder
       /*  TermsQueryBuilder termQueryBuilder = QueryBuilders.termsQuery("userName", "大威天龙");
-        searchSourceBuilder.query(termQueryBuilder)*/;
+        searchSourceBuilder.query(termQueryBuilder)*/
+        ;
 
         // 设置查询的起始索引位置和数量：如下表示从第1条开始，共返回5条文档数据 （分页）
         searchSourceBuilder.from(0);
@@ -632,15 +631,15 @@ public class EsClientUtil {
 
         // 设置查询请求的超时时间：如下表示60秒没得到返回结果时就认为请求已超时
         searchSourceBuilder.timeout(new TimeValue(60, TimeUnit.SECONDS));
-
+        //searchSourceBuilder.sort(new FieldSortBuilder("_id").order(SortOrder.ASC));
         // 默认情况下，搜索请求会返回文档_source的内容，但与Rest API中的内容一样，您可以覆盖此行为。例如，您可以完全关闭_source检索：
-       // searchSourceBuilder.fetchSource(false);
+        // searchSourceBuilder.fetchSource(false);
 
         // 该方法还接受一个或多个通配符模式的数组，以控制以更精细的方式包含或排除哪些字段
     /*    String[] includeFields = new String[] {"title", "user", "innerObject.*"};
         String[] excludeFields = new String[] {"_type"};
         SearchSourceBuilder searchSourceBuilder1 = searchSourceBuilder.fetchSource(includeFields, excludeFields);*/
-       // System.out.println(searchSourceBuilder);
+        // System.out.println(searchSourceBuilder);
 
         HighlightBuilder highlightBuilder = new HighlightBuilder();
         HighlightBuilder.Field highlightTitle = new HighlightBuilder.Field("title");
@@ -680,7 +679,7 @@ public class EsClientUtil {
             List<Object> users = (List<Object>) sourceAsMap.get("user");
             Map<String, Object> innerObject =
                     (Map<String, Object>) sourceAsMap.get("innerObject");*/
-            log.info("法师所在索引 || ==> [{}] || id ==> [{}] || 评分 ==> [{}] || 有那味了 ==> [{}]",index,id,score, sourceAsMap);
+            log.info("法师所在索引 || ==> [{}] || id ==> [{}] || 评分 ==> [{}] || 有那味了 ==> [{}]", index, id, score, sourceAsMap);
         }
        /* for (SearchHit hit : hits.getHits()) {
             Map<String, HighlightField> highlightFields = hit.getHighlightFields();
@@ -706,10 +705,61 @@ public class EsClientUtil {
         TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("userName", "kingfahai");
         searchSourceBuilder.query(termQueryBuilder);
         searchRequest.source(searchSourceBuilder);
-        SearchResponse response = client.search(searchRequest,RequestOptions.DEFAULT);
+        SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
         System.out.println(response.status());
         System.out.println(JSON.toJSONString(response.getHits()));
-        for (SearchHit searchHit : response.getHits().getHits() ) {
+        for (SearchHit searchHit : response.getHits().getHits()) {
+            System.out.println(searchHit.getSourceAsMap());
+        }
+    }
+
+
+    public void searchMutil() throws IOException {
+        SearchRequest request = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+       // QueryBuilder queryBuilder = QueryBuilders.termQuery("userName.keyword", "大");
+       // QueryBuilders.termsQuery("user", new ArrayList<String>().add("kimchy"));
+        QueryBuilder queryBuilder = QueryBuilders.matchQuery("userName", "大");
+        // 多个index 索引去匹配
+       // QueryBuilder queryBuilder = QueryBuilders.multiMatchQuery("法海", "userName","id", "userNo");
+       //  QueryBuilder queryBuilder = QueryBuilders.matchAllQuery();
+       // MatchQueryBuilder matchQueryBuilder = new MatchQueryBuilder("userName", "法海");
+     /*   // 对匹配查询启用模糊匹配
+        matchQueryBuilder.fuzziness(Fuzziness.AUTO);
+        // 在匹配查询上设置前缀长度
+        matchQueryBuilder.prefixLength(3);
+        // 设置最大展开选项以控制查询的模糊过程
+        matchQueryBuilder.maxExpansions(10);*/
+
+        // 排序，默认为全局倒序
+        searchSourceBuilder.sort(new ScoreSortBuilder().order(SortOrder.DESC));
+        //searchSourceBuilder.sort(new FieldSortBuilder("id").order(SortOrder.ASC));
+        searchSourceBuilder.query(queryBuilder);
+        request.source(searchSourceBuilder);
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        System.out.println(response.status());
+        System.out.println(JSON.toJSONString(response.getHits()));
+        for (SearchHit searchHit : response.getHits().getHits()) {
+            System.out.println(searchHit.getSourceAsMap());
+        }
+    }
+
+    public void  timeSearch() throws IOException {
+        SearchRequest request = new SearchRequest("qos1");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        QueryBuilder queryBuilder = QueryBuilders.termQuery("userName", "大");
+        // 查询大于给定的时间
+        // QueryBuilders.rangeQuery("date").gt(DateUtil.nowTimestamp());
+        // 查询区间时间
+        //  QueryBuilders.rangeQuery("date").lt(beginDate).gt(endDate);
+        // 插叙小于给定的时间
+        QueryBuilders.rangeQuery("date").lt(DateUtil.nowTimestamp());
+        searchSourceBuilder.query(queryBuilder);
+        request.source(searchSourceBuilder);
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        System.out.println(response.status());
+        System.out.println(JSON.toJSONString(response.getHits()));
+        for (SearchHit searchHit : response.getHits().getHits()) {
             System.out.println(searchHit.getSourceAsMap());
         }
     }
