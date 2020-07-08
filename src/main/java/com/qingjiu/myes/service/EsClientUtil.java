@@ -43,6 +43,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -91,9 +92,37 @@ public class EsClientUtil {
         // 创建索引请求
         CreateIndexRequest request = new CreateIndexRequest(indexName);
         // 超时时间
-        request.setTimeout(TimeValue.timeValueMinutes(timeOut == null ? this.timeOut : timeOut));
+        request.setTimeout(TimeValue.timeValueSeconds(timeOut == null ? this.timeOut : timeOut));
         // 主节点超时时间
-        request.setMasterTimeout(TimeValue.timeValueMinutes(masterTimeOut == null ? this.masterTimeOut : masterTimeOut));
+        request.setMasterTimeout(TimeValue.timeValueSeconds(masterTimeOut == null ? this.masterTimeOut : masterTimeOut));
+        request.mapping("{\n" +
+                "\n" +
+                "      \"properties\" : {\n" +
+                "        \"userName\" : {\n" +
+                "          \"type\" : \"text\"\n" +
+                "        },\n" +
+                "        \"userNo\" : {\n" +
+                "          \"type\" : \"text\"\n" +
+                "        },\n" +
+                "        \"userId\" : {\n" +
+                "          \"type\" : \"integer\"\n" +
+                "        },\n" +
+                "        \"sex\" : {\n" +
+                "          \"type\" : \"integer\"\n" +
+                "        },\n" +
+                "        \"password\" : {\n" +
+                "          \"type\" : \"text\"\n" +
+                "        },\n" +
+                "        \"age\" : {\n" +
+                "          \"type\" : \"integer\"\n" +
+                "        },\n" +
+                "        \"date\" : {\n" +
+                "          \"type\" : \"date\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "\n" +
+                "}",XContentType.JSON);
+
         CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
 
         // 异步添加索引 todo 这里异步会抛异常，但是可以成功添加
@@ -747,7 +776,7 @@ public class EsClientUtil {
     public void  timeSearch() throws IOException {
         SearchRequest request = new SearchRequest("qos1");
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        QueryBuilder queryBuilder = QueryBuilders.termQuery("userName", "大");
+        QueryBuilder queryBuilder = QueryBuilders.termQuery("userName", "2020-07-08 13:41:30");
         // 查询大于给定的时间
         // QueryBuilders.rangeQuery("date").gt(DateUtil.nowTimestamp());
         // 查询区间时间

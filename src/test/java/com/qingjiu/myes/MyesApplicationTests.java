@@ -35,6 +35,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -302,8 +303,10 @@ public class MyesApplicationTests {
     public void testAddBulkDocument() throws IOException {
         List<User> list = new ArrayList<>();
 
-        Timestamp timestamp = DateUtil.nowTimestamp();
+        //String timestamp = DateUtil.timestampToStr(DateUtil.nowTimestamp(), null);
+        Date timestamp = new Date();
 
+        System.out.println(timestamp);
         User user = new User();
         user.setUserNo("23");
         user.setUserName("kingfahai");
@@ -317,7 +320,6 @@ public class MyesApplicationTests {
         user1.setSex(2);
         user1.setDate(timestamp);
         list.add(user1);
-
 
 
         User user2 = new User();
@@ -355,9 +357,9 @@ public class MyesApplicationTests {
         user6.setDate(timestamp);
         list.add(user6);
 
-        boolean json = esClientUtil.bulkAddDocument("qos1", list, null, false);
-       // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
-       // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
+        boolean json = esClientUtil.bulkAddDocument("name3", list, null, false);
+        // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
+        // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
         System.out.println(json);
     }
 
