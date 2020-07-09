@@ -5,6 +5,7 @@ import com.qingjiu.myes.entity.User;
 import com.qingjiu.myes.entity.es.ElasticSearchEntity;
 import com.qingjiu.myes.service.EsClientUtil;
 import com.qingjiu.myes.util.DateUtil;
+import org.apache.commons.io.FileUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -31,7 +32,10 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.ResourceUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -245,7 +249,7 @@ public class MyesApplicationTests {
 
     @Test
     public void testDelIndexUtil() throws IOException {
-        boolean util = esClientUtil.deleteIndex("util", null, null, false);
+        boolean util = esClientUtil.deleteIndex("name3", null, null, false);
         System.out.println(util);
     }
 
@@ -303,22 +307,22 @@ public class MyesApplicationTests {
     public void testAddBulkDocument() throws IOException {
         List<User> list = new ArrayList<>();
 
-        //String timestamp = DateUtil.timestampToStr(DateUtil.nowTimestamp(), null);
-        Date timestamp = new Date();
+        String timestamp = DateUtil.timestampToStr(DateUtil.nowTimestamp(), null);
+        //Date timestamp = new Date();
 
         System.out.println(timestamp);
         User user = new User();
         user.setUserNo("23");
         user.setUserName("kingfahai");
         user.setSex(1);
-        user.setDate(timestamp);
+        user.setDate("2020-07-09 10:00:40");
         list.add(user);
 
         User user1 = new User();
         user1.setUserNo("2");
         user1.setUserName("daweitianlong ");
         user1.setSex(2);
-        user1.setDate(timestamp);
+        user1.setDate("2020-07-08 10:33:59");
         list.add(user1);
 
 
@@ -326,28 +330,28 @@ public class MyesApplicationTests {
         user2.setUserNo("3");
         user2.setUserName("bore");
         user2.setSex(3);
-        user2.setDate(timestamp);
+        user2.setDate("2020-07-09 07:34:10");
         list.add(user2);
 
         User user3 = new User();
         user3.setUserNo("4");
         user3.setUserName("大罗金身1");
         user3.setSex(3);
-        user3.setDate(timestamp);
+        user3.setDate("2020-07-09 03:34:10");
         list.add(user3);
 
         User user4 = new User();
         user4.setUserNo("5");
         user4.setUserName("世尊地藏1");
         user4.setSex(3);
-        user4.setDate(timestamp);
+        user4.setDate("2020-07-09 01:34:10");
         list.add(user4);
 
         User user5 = new User();
         user5.setUserNo("6");
         user5.setUserName("开始捉妖12");
         user5.setSex(3);
-        user5.setDate(timestamp);
+        user5.setDate("2020-07-09 05:34:10");
         list.add(user5);
 
         User user6 = new User();
@@ -357,7 +361,7 @@ public class MyesApplicationTests {
         user6.setDate(timestamp);
         list.add(user6);
 
-        boolean json = esClientUtil.bulkAddDocument("name3", list, null, false);
+        boolean json = esClientUtil.bulkUpdateDocument("name3", list, null, false);
         // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
         // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
         System.out.println(json);
@@ -368,5 +372,6 @@ public class MyesApplicationTests {
     public void testSearch() throws IOException {
         esClientUtil.timeSearch();
     }
+
 
 }

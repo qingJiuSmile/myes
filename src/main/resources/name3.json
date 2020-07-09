@@ -1,0 +1,28 @@
+{
+  "properties" : {
+    "userName" : {
+      "type" : "text",
+      "analyzer":"ik_max_word"
+    },
+    "userNo" : {
+      "type" : "text"
+    },
+    "userId" : {
+      "type" : "integer"
+    },
+    "sex" : {
+      "type" : "integer"
+    },
+    "password" : {
+      "type" : "text"
+    },
+    "age" : {
+      "type" : "integer"
+    },
+    "date" : {
+      "type" : "date",
+      "format":"yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+    }
+  }
+
+}

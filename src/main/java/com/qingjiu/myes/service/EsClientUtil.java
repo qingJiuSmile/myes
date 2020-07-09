@@ -1,8 +1,11 @@
 package com.qingjiu.myes.service;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.qingjiu.myes.util.DateUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.search.TotalHits;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -40,8 +43,10 @@ import org.elasticsearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -77,6 +82,7 @@ public class EsClientUtil {
      *   existsIndex --                                                                            *
      * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+
     /**
      * 创建索引
      *
@@ -89,39 +95,20 @@ public class EsClientUtil {
      * @date 2020/7/1
      **/
     public boolean createIndex(String indexName, Long timeOut, Long masterTimeOut, boolean isAsync) throws IOException {
+        File jsonFile = ResourceUtils.getFile("classpath:name3.json");
+        // 从json文件中获得配置
+        String json = FileUtils.readFileToString(jsonFile, "UTF-8");
+
         // 创建索引请求
         CreateIndexRequest request = new CreateIndexRequest(indexName);
         // 超时时间
         request.setTimeout(TimeValue.timeValueSeconds(timeOut == null ? this.timeOut : timeOut));
         // 主节点超时时间
         request.setMasterTimeout(TimeValue.timeValueSeconds(masterTimeOut == null ? this.masterTimeOut : masterTimeOut));
-        request.mapping("{\n" +
-                "\n" +
-                "      \"properties\" : {\n" +
-                "        \"userName\" : {\n" +
-                "          \"type\" : \"text\"\n" +
-                "        },\n" +
-                "        \"userNo\" : {\n" +
-                "          \"type\" : \"text\"\n" +
-                "        },\n" +
-                "        \"userId\" : {\n" +
-                "          \"type\" : \"integer\"\n" +
-                "        },\n" +
-                "        \"sex\" : {\n" +
-                "          \"type\" : \"integer\"\n" +
-                "        },\n" +
-                "        \"password\" : {\n" +
-                "          \"type\" : \"text\"\n" +
-                "        },\n" +
-                "        \"age\" : {\n" +
-                "          \"type\" : \"integer\"\n" +
-                "        },\n" +
-                "        \"date\" : {\n" +
-                "          \"type\" : \"date\"\n" +
-                "        }\n" +
-                "      }\n" +
-                "\n" +
-                "}",XContentType.JSON);
+
+        // 设置索引mapping类型映射
+        request.mapping(json, XContentType.JSON);
+
 
         CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
 
@@ -746,13 +733,13 @@ public class EsClientUtil {
     public void searchMutil() throws IOException {
         SearchRequest request = new SearchRequest();
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-       // QueryBuilder queryBuilder = QueryBuilders.termQuery("userName.keyword", "大");
-       // QueryBuilders.termsQuery("user", new ArrayList<String>().add("kimchy"));
+        // QueryBuilder queryBuilder = QueryBuilders.termQuery("userName.keyword", "大");
+        // QueryBuilders.termsQuery("user", new ArrayList<String>().add("kimchy"));
         QueryBuilder queryBuilder = QueryBuilders.matchQuery("userName", "大");
         // 多个index 索引去匹配
-       // QueryBuilder queryBuilder = QueryBuilders.multiMatchQuery("法海", "userName","id", "userNo");
-       //  QueryBuilder queryBuilder = QueryBuilders.matchAllQuery();
-       // MatchQueryBuilder matchQueryBuilder = new MatchQueryBuilder("userName", "法海");
+        // QueryBuilder queryBuilder = QueryBuilders.multiMatchQuery("法海", "userName","id", "userNo");
+        //  QueryBuilder queryBuilder = QueryBuilders.matchAllQuery();
+        // MatchQueryBuilder matchQueryBuilder = new MatchQueryBuilder("userName", "法海");
      /*   // 对匹配查询启用模糊匹配
         matchQueryBuilder.fuzziness(Fuzziness.AUTO);
         // 在匹配查询上设置前缀长度
@@ -773,16 +760,16 @@ public class EsClientUtil {
         }
     }
 
-    public void  timeSearch() throws IOException {
-        SearchRequest request = new SearchRequest("qos1");
+    public void timeSearch() throws IOException {
+        SearchRequest request = new SearchRequest();
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        QueryBuilder queryBuilder = QueryBuilders.termQuery("userName", "2020-07-08 13:41:30");
+        QueryBuilder queryBuilder = QueryBuilders.matchQuery("date", "2020-07-09");
         // 查询大于给定的时间
         // QueryBuilders.rangeQuery("date").gt(DateUtil.nowTimestamp());
         // 查询区间时间
-        //  QueryBuilders.rangeQuery("date").lt(beginDate).gt(endDate);
+        // QueryBuilders.rangeQuery("date").lt("2020-07-08").gt("2020-07-09 02:42:23");
         // 插叙小于给定的时间
-        QueryBuilders.rangeQuery("date").lt(DateUtil.nowTimestamp());
+        // QueryBuilders.rangeQuery("date").lt(DateUtil.nowTimestamp());
         searchSourceBuilder.query(queryBuilder);
         request.source(searchSourceBuilder);
         SearchResponse response = client.search(request, RequestOptions.DEFAULT);
