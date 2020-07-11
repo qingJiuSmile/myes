@@ -24,6 +24,5 @@ public class User {
 
     private String password;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone = "GMT+8")
-    private Date date;
+    private String date;
 }

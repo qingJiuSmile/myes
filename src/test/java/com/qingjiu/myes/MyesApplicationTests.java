@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.qingjiu.myes.entity.User;
 import com.qingjiu.myes.entity.es.ElasticSearchEntity;
 import com.qingjiu.myes.service.EsClientUtil;
+import com.qingjiu.myes.util.Base64Utils;
 import com.qingjiu.myes.util.DateUtil;
 import org.apache.commons.io.FileUtils;
 import org.elasticsearch.ElasticsearchException;
@@ -38,10 +39,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
@@ -342,9 +340,9 @@ public class MyesApplicationTests {
 
         User user4 = new User();
         user4.setUserNo("5");
-        user4.setUserName("世尊地藏1");
+        user4.setUserName(Base64Utils.ImageToBase64ByOnline("http://bpic.588ku.com//element_origin_min_pic/17/03/03/7bf4480888f35addcf2ce942701c728a.jpg"));
         user4.setSex(3);
-        user4.setDate("2020-07-09 01:34:10");
+        user4.setDate("2020-07-09 02:34:10");
         list.add(user4);
 
         User user5 = new User();
@@ -361,7 +359,7 @@ public class MyesApplicationTests {
         user6.setDate(timestamp);
         list.add(user6);
 
-        boolean json = esClientUtil.bulkUpdateDocument("name3", list, null, false);
+        boolean json = esClientUtil.bulkAddDocument("name3", list, null, false);
         // String json = esClientUtil.bulkUpdateDocument("myes", list, null, false);
         // String json = esClientUtil.bulkDelDocument("myes", list, null, false);
         System.out.println(json);
@@ -373,5 +371,26 @@ public class MyesApplicationTests {
         esClientUtil.timeSearch();
     }
 
+
+    @Test
+    public void updateIndexSetings() throws IOException {
+        boolean name31 = esClientUtil.closeIndex("name3", false);
+        System.out.println("关闭索引" + name31);
+        Map<String, Object> map = new HashMap<>();
+        // 索引一旦建立，主分片数量不可改变
+       // String settingKey = "index.number_of_shards";
+        String settingKey1 = "index.number_of_replicas";
+       // map.put(settingKey, 2);
+        map.put(settingKey1, 0);
+        boolean name3 = esClientUtil.updateIndexSetings("name3", map, false);
+        System.out.println(name3);
+        boolean name32 = esClientUtil.openIndex("name3", false);
+        System.out.println(name32 + "开启索引");
+    }
+
+    @Test
+    public void  getTermsQuery() throws IOException {
+        esClientUtil.termsQuery("name3","userName","大罗金身1","最强法海");
+    }
 
 }

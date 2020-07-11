@@ -11,6 +11,9 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
+import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -26,9 +29,7 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.indices.CreateIndexRequest;
-import org.elasticsearch.client.indices.CreateIndexResponse;
-import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.client.indices.*;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.*;
@@ -109,7 +110,6 @@ public class EsClientUtil {
         // 设置索引mapping类型映射
         request.mapping(json, XContentType.JSON);
 
-
         CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
 
         // 异步添加索引 todo 这里异步会抛异常，但是可以成功添加
@@ -136,6 +136,81 @@ public class EsClientUtil {
         return acknowledged;
     }
 
+    public boolean closeIndex(String index, boolean isAsync) throws IOException {
+        CloseIndexRequest request = new CloseIndexRequest(index);
+        AcknowledgedResponse closeIndexResponse = client.indices().close(request, RequestOptions.DEFAULT);
+        if (isAsync) {
+            client.indices().closeAsync(request, RequestOptions.DEFAULT, new ActionListener<CloseIndexResponse>() {
+                @Override
+                public void onResponse(CloseIndexResponse closeIndexResponse) {
+                    log.info("关闭索引 ==> [{}]", closeIndexResponse.isAcknowledged());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            });
+        }
+        return closeIndexResponse.isAcknowledged();
+    }
+
+    public boolean openIndex(String index, boolean isAsync) throws IOException {
+        OpenIndexRequest request = new OpenIndexRequest(index);
+        OpenIndexResponse response = client.indices().open(request, RequestOptions.DEFAULT);
+        if(isAsync){
+            client.indices().openAsync(request, RequestOptions.DEFAULT, new ActionListener<OpenIndexResponse>() {
+                @Override
+                public void onResponse(OpenIndexResponse openIndexResponse) {
+                    log.info("开启索引 ==> [{}]", openIndexResponse.isAcknowledged());
+
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+
+                }
+            });
+        }
+        return response.isAcknowledged();
+    }
+
+    /**
+     * 修改索引配置(之前必须进行索引的 开关 操作否则报错)
+     *
+     * @param index
+     * @param map
+     * @param isAsync
+     * @return boolean
+     * @author tjy
+     * @date 2020/7/10
+     **/
+    public boolean updateIndexSetings(String index, Map<String, Object> map, boolean isAsync) throws IOException {
+        UpdateSettingsRequest request = new UpdateSettingsRequest(index);
+       /* Map<String, Object> map = new HashMap<>();
+        String settingKey = "index.number_of_shards";
+        String settingKey1 = "index.number_of_replicas";
+        map.put(settingKey, 2);
+        map.put(settingKey1, 3);*/
+        request.settings(map);
+        AcknowledgedResponse updateSettingsResponse =
+                client.indices().putSettings(request, RequestOptions.DEFAULT);
+        if (isAsync) {
+            client.indices().putSettingsAsync(request, RequestOptions.DEFAULT, new ActionListener<AcknowledgedResponse>() {
+                @Override
+                public void onResponse(AcknowledgedResponse acknowledgedResponse) {
+                    log.info("异步修改配置 ==> [{}]", acknowledgedResponse.isAcknowledged());
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error(e.getMessage(), e);
+                }
+            });
+        }
+        return updateSettingsResponse.isAcknowledged();
+    }
 
     /**
      * 删除索引
@@ -450,7 +525,17 @@ public class EsClientUtil {
         return null;
     }
 
-    // TODO 没整明白
+    /**
+     * 修改对应id 文档内容
+     * @param indexName 索引名称
+     * @param id 索引id
+     * @param obj 要改变的对象
+     * @param timeOut 超时时间
+     * @param isAsync 是否异步
+     * @author tjy
+     * @date 2020/7/10
+     * @return void
+     **/
     public void updateDocument(String indexName, String id, Object obj, Long timeOut, boolean isAsync) throws IOException {
 
         try {
@@ -718,7 +803,7 @@ public class EsClientUtil {
         SearchRequest searchRequest = new SearchRequest();
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         // termQuery 方法对中文支持不好，只能支持单个中文进行搜索；并且，如果是搜索单词的话 也只能支持单个单词，如：不能 elasticSearch 驼峰写法
-        TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("userName", "kingfahai");
+        TermQueryBuilder termQueryBuilder = QueryBuilders.termQuery("userName.keyword", "大罗金身1");
         searchSourceBuilder.query(termQueryBuilder);
         searchRequest.source(searchSourceBuilder);
         SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
@@ -780,4 +865,23 @@ public class EsClientUtil {
         }
     }
 
+
+    public void termsQuery(String indexName,String docName,String... data) throws IOException {
+        // 创建请求
+        SearchRequest request = new SearchRequest("".equals(indexName) ? "" : indexName);
+        // 封装查询条件
+        SearchSourceBuilder builder = new SearchSourceBuilder();
+        SearchSourceBuilder query = builder.query(QueryBuilders.termsQuery(docName + ".keyword", data));
+        request.source(query);
+        // 执行查询
+        SearchResponse response = client.search(request,RequestOptions.DEFAULT);
+        System.out.println(response.status());
+        SearchHit[] hits = response.getHits().getHits();
+        System.out.println(hits.length);
+
+        for (SearchHit hit : hits) {
+            System.out.println("" + hit.getSourceAsString());
+        }
+
+    }
 }
